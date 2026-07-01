@@ -1,0 +1,25 @@
+{
+  "Age": 35,
+  "Occupation": "Engineer",
+  "Annual_Income": 55000,
+  "Monthly_Inhand_Salary": 3800,
+  "Num_Bank_Accounts": 4,
+  "Num_Credit_Card": 4,
+  "Interest_Rate": 14,
+  "Num_of_Loan": 3,
+  "Type_of_Loan": "Auto Loan, Credit-Builder Loan",
+  "Delay_from_due_date": 12,
+  "Num_of_Delayed_Payment": 4,
+  "Changed_Credit_Limit": 8,
+  "Num_Credit_Inquiries": 4,
+  "Credit_Mix": "Standard",
+  "Outstanding_Debt": 1200,
+  "Credit_Utilization_Ratio": 32,
+  "Credit_History_Age": "8 Years and 5 Months",
+  "Payment_of_Min_Amount": "NM",
+  "Total_EMI_per_month": 180,
+  "Amount_invested_monthly": 250,
+  "Payment_Behaviour": "High_spent_Medium_value_payments",
+  "Monthly_Balance": 520
+}
+

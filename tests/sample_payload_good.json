@@ -1,0 +1,25 @@
+{
+  "Age": 46,
+  "Occupation": "Manager",
+  "Annual_Income": 115000,
+  "Monthly_Inhand_Salary": 7600,
+  "Num_Bank_Accounts": 2,
+  "Num_Credit_Card": 3,
+  "Interest_Rate": 5,
+  "Num_of_Loan": 1,
+  "Type_of_Loan": "Home Equity Loan",
+  "Delay_from_due_date": 2,
+  "Num_of_Delayed_Payment": 0,
+  "Changed_Credit_Limit": 2,
+  "Num_Credit_Inquiries": 1,
+  "Credit_Mix": "Good",
+  "Outstanding_Debt": 350,
+  "Credit_Utilization_Ratio": 18,
+  "Credit_History_Age": "18 Years and 9 Months",
+  "Payment_of_Min_Amount": "No",
+  "Total_EMI_per_month": 90,
+  "Amount_invested_monthly": 1200,
+  "Payment_Behaviour": "High_spent_Large_value_payments",
+  "Monthly_Balance": 1800
+}
+

@@ -1,0 +1,32 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+.venv/
+venv/
+env/
+
+.ipynb_checkpoints/
+
+mlflow.db
+mlartifacts/
+mlruns/
+
+artifacts/experiment_results.csv
+artifacts/metrics.json
+artifacts/training_runs.jsonl
+
+data_*.csv
+*.parquet
+
+*.pdf
+*.log
+.DS_Store
+Thumbs.db
+# IMPORTANT: do NOT ignore the two files the deployed app needs to run inference.
+# These are kept on purpose so Streamlit Cloud / AWS can load the model without
+# retraining. Re-run training -> commit these two -> redeploy.
+!artifacts/model.joblib
+!artifacts/feature_schema.json

@@ -1,0 +1,25 @@
+{
+  "Age": 24,
+  "Occupation": "Scientist",
+  "Annual_Income": 18000,
+  "Monthly_Inhand_Salary": 1200,
+  "Num_Bank_Accounts": 9,
+  "Num_Credit_Card": 8,
+  "Interest_Rate": 28,
+  "Num_of_Loan": 7,
+  "Type_of_Loan": "Personal Loan, Payday Loan",
+  "Delay_from_due_date": 45,
+  "Num_of_Delayed_Payment": 16,
+  "Changed_Credit_Limit": 25,
+  "Num_Credit_Inquiries": 12,
+  "Credit_Mix": "Bad",
+  "Outstanding_Debt": 4200,
+  "Credit_Utilization_Ratio": 55,
+  "Credit_History_Age": "1 Years and 2 Months",
+  "Payment_of_Min_Amount": "Yes",
+  "Total_EMI_per_month": 420,
+  "Amount_invested_monthly": 20,
+  "Payment_Behaviour": "Low_spent_Small_value_payments",
+  "Monthly_Balance": 80
+}
+
