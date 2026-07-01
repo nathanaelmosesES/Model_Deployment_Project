@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
 sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
@@ -161,6 +162,13 @@ app = FastAPI(
         "`Try it out`, lalu gunakan salah satu contoh input yang tersedia."
     ),
     contact={"name": "Credit Scoring Project"},
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
