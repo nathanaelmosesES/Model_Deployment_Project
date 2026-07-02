@@ -14,9 +14,7 @@ mlflow.db
 mlartifacts/
 mlruns/
 
-artifacts/experiment_results.csv
-artifacts/metrics.json
-artifacts/training_runs.jsonl
+artifacts/
 
 data_*.csv
 *.parquet
@@ -25,8 +23,5 @@ data_*.csv
 *.log
 .DS_Store
 Thumbs.db
-# IMPORTANT: do NOT ignore the two files the deployed app needs to run inference.
-# These are kept on purpose so Streamlit Cloud / AWS can load the model without
-# retraining. Re-run training -> commit these two -> redeploy.
-!artifacts/model.joblib
-!artifacts/feature_schema.json
+
+.env

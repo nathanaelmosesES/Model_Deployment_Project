@@ -1,20 +1,17 @@
 import json
-import sys
+import os
 from pathlib import Path
 
 import pandas as pd
+import requests
 import streamlit as st
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 ROOT = Path(__file__).resolve().parent
-sys.path.append(str(ROOT / "src"))
-
-from credit_scoring.config import ARTIFACT_DIR  # noqa: E402
-from credit_scoring.inference import predict_record  # noqa: E402
-
-MODEL_PATH = ARTIFACT_DIR / "model.joblib"
 TESTS_DIR = ROOT / "tests"
 
-# Per-class example payloads (one representative test case per label).
 EXAMPLE_FILES = {
     "Good": "sample_payload_good.json",
     "Standard": "sample_payload_standard.json",
@@ -48,6 +45,8 @@ TEXT_FIELDS = [
     "Payment_Behaviour",
 ]
 
+DEFAULT_BACKEND = os.getenv("BACKEND_URL", "http://localhost:8000")
+
 
 @st.cache_data
 def load_example(label: str) -> dict:
@@ -59,17 +58,26 @@ st.set_page_config(page_title="Credit Scoring", page_icon="💳", layout="center
 st.title("💳 Credit Scoring Prediction")
 st.caption(
     "Memprediksi kelas `Credit_Score` nasabah (Good / Standard / Poor) "
-    "menggunakan model machine learning hasil training MLflow."
+    "via FastAPI backend."
 )
 
-if not MODEL_PATH.exists():
-    st.error(
-        f"Model belum ditemukan di `{MODEL_PATH}`.\n\n"
-        "Jalankan training dulu: `python scripts/train_local.py --data data_C.csv`"
+# --- Backend URL config ---------------------------------------------------------
+with st.sidebar:
+    st.header("Backend")
+    backend_url = st.text_input(
+        "FastAPI URL",
+        value=DEFAULT_BACKEND,
+        help="URL FastAPI yang berjalan di EC2, contoh: http://1.2.3.4:8000",
     )
-    st.stop()
+    if st.button("Cek koneksi", use_container_width=True):
+        try:
+            r = requests.get(f"{backend_url}/health", timeout=5)
+            r.raise_for_status()
+            st.success("Backend online ✓")
+        except Exception as e:
+            st.error(f"Backend tidak terjangkau: {e}")
 
-# --- Example loader ---------------------------------------------------------
+# --- Example loader -------------------------------------------------------------
 st.subheader("1. Muat contoh per kelas (opsional)")
 cols = st.columns(len(EXAMPLE_FILES))
 for col, label in zip(cols, EXAMPLE_FILES):
@@ -78,7 +86,7 @@ for col, label in zip(cols, EXAMPLE_FILES):
 
 payload = st.session_state.get("payload", load_example("Standard"))
 
-# --- Input form -------------------------------------------------------------
+# --- Input form -----------------------------------------------------------------
 st.subheader("2. Profil finansial nasabah")
 with st.form("credit_form"):
     values: dict = {}
@@ -97,13 +105,25 @@ with st.form("credit_form"):
         "Prediksi", use_container_width=True, type="primary"
     )
 
-# --- Prediction -------------------------------------------------------------
+# --- Prediction via FastAPI -----------------------------------------------------
 if submitted:
     record = {k: (v if v != "" else None) for k, v in values.items()}
     try:
-        result = predict_record(record, model_path=MODEL_PATH)
-    except Exception as exc:  # surface errors in the UI instead of crashing
-        st.exception(exc)
+        response = requests.post(
+            f"{backend_url}/predict",
+            json=record,
+            timeout=30,
+        )
+        response.raise_for_status()
+        result = response.json()
+    except requests.exceptions.ConnectionError:
+        st.error(f"Tidak bisa konek ke backend `{backend_url}`. Pastikan FastAPI sudah jalan.")
+        st.stop()
+    except requests.exceptions.HTTPError as e:
+        st.error(f"Backend error {response.status_code}: {response.text}")
+        st.stop()
+    except Exception as e:
+        st.exception(e)
         st.stop()
 
     prediction = result["prediction"]
