@@ -43,7 +43,7 @@ TEXT_FIELDS = [
     "Payment_Behaviour",
 ]
 
-DEFAULT_BACKEND = os.getenv("BACKEND_URL", "http://localhost:8000")
+DEFAULT_BACKEND = os.getenv("BACKEND_URL", "http://ec2-54-80-219-227.compute-1.amazonaws.com")
 
 
 @st.cache_data
