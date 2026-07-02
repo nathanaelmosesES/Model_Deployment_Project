@@ -5,9 +5,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 import streamlit as st
-from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).resolve().parent / ".env")
 
 ROOT = Path(__file__).resolve().parent
 TESTS_DIR = ROOT / "tests"
