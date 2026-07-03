@@ -88,6 +88,17 @@ STANDARD_EXAMPLE = {
 
 
 class CreditPayload(BaseModel):
+    """Schema request body untuk endpoint ``POST /predict``.
+
+    Merepresentasikan profil finansial satu nasabah. Semua field bersifat opsional —
+    field yang tidak dikirim akan diisi ``null`` dan diimputasi secara otomatis oleh
+    pipeline (median untuk numerik, modus untuk kategorik) saat inferensi berjalan.
+    Hal ini memungkinkan API tetap berfungsi meski data nasabah tidak lengkap.
+
+    Field tambahan di luar yang terdefinisi tetap diterima (``extra="allow"``) namun
+    diabaikan oleh model karena tidak masuk ke dalam schema fitur.
+    """
+
     model_config = ConfigDict(
         extra="allow",
         json_schema_extra={
@@ -142,6 +153,21 @@ class CreditPayload(BaseModel):
 
 
 class PredictionResponse(BaseModel):
+    """Schema response body untuk endpoint ``POST /predict``.
+
+    Berisi hasil klasifikasi credit score nasabah beserta probabilitas opsional
+    per kelas. Probabilitas hanya disertakan jika estimator mendukung ``predict_proba``
+    (semua model kandidat dalam proyek ini mendukungnya).
+
+    Attributes
+    ----------
+    prediction:
+        Kelas credit score hasil prediksi: ``"Good"``, ``"Standard"``, atau ``"Poor"``.
+    probabilities:
+        Dict probabilitas per kelas, misal ``{"Good": 0.7, "Standard": 0.2, "Poor": 0.1}``.
+        Bernilai ``null`` jika model tidak mendukung ``predict_proba``.
+    """
+
     prediction: Literal["Good", "Poor", "Standard"] = Field(
         examples=["Standard"],
         description="Kelas credit score hasil prediksi model.",

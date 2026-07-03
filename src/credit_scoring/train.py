@@ -27,31 +27,82 @@ DEFAULT_EXPERIMENT = "credit_scoring"
 
 
 class SimpleProgress:
+    """Progress reporter ringan yang kompatibel dengan antarmuka ``tqdm``.
+
+    Digunakan sebagai fallback ketika pustaka ``tqdm`` tidak terinstal.
+    Semua output dicetak ke ``stderr`` agar tidak tercampur dengan output
+    JSON dari ``train_local.py`` yang dicetak ke ``stdout``.
+    """
+
     def __init__(self, total: int, enabled: bool = True):
+        """Inisialisasi reporter dengan jumlah total langkah dan status aktif/nonaktif.
+
+        Parameters
+        ----------
+        total:
+            Jumlah total langkah training yang akan dilacak.
+        enabled:
+            Jika ``False``, semua output dinonaktifkan (mode senyap).
+        """
         self.total = total
         self.enabled = enabled
         self.current = 0
 
     def __enter__(self):
+        """Cetak baris progress awal (0%) saat masuk blok ``with``.
+
+        Returns
+        -------
+        self
+        """
         if self.enabled:
             print(f"Training progress: 0/{self.total} (0.0%)", file=sys.stderr)
         return self
 
     def __exit__(self, exc_type, exc, traceback):
+        """Paksa progress ke 100% saat keluar blok ``with`` jika tidak ada error.
+
+        Memastikan baris progress terakhir selalu menunjukkan penyelesaian
+        meski ``update()`` tidak dipanggil tepat sebanyak ``total`` kali.
+        """
         if self.enabled and exc_type is None and self.current < self.total:
             self.update(self.total - self.current, stage="done")
 
     def set_description(self, description: str):
+        """Cetak label tahap training saat ini ke stderr.
+
+        Parameters
+        ----------
+        description:
+            Teks deskripsi tahap, misal ``"extra_trees: cross-validation"``.
+        """
         if self.enabled:
             print(description, file=sys.stderr)
 
     def set_postfix(self, **kwargs):
+        """Cetak detail tambahan (metrik, nama model) setelah langkah selesai.
+
+        Parameters
+        ----------
+        **kwargs:
+            Pasangan nama-nilai yang akan dicetak, misal
+            ``model="extra_trees", cv_f1_macro_mean="0.8123"``.
+        """
         if not self.enabled or not kwargs:
             return
         details = ", ".join(f"{key}={value}" for key, value in kwargs.items())
         print(f"  {details}", file=sys.stderr)
 
     def update(self, n: int = 1, **kwargs):
+        """Tambahkan ``n`` ke hitungan langkah selesai dan cetak persentase terbaru.
+
+        Parameters
+        ----------
+        n:
+            Jumlah langkah yang baru saja diselesaikan. Default 1.
+        **kwargs:
+            Detail tambahan yang ikut dicetak di baris yang sama.
+        """
         self.current += n
         if not self.enabled:
             return
@@ -77,6 +128,16 @@ def make_progress(total: int, enabled: bool):
 
 
 class ExperimentRunner:
+    """Menjalankan eksperimen training penuh dari CSV mentah hingga artifact tersimpan.
+
+    Alur kerja satu panggilan ``run()``:
+    1. Baca CSV dan jalankan feature engineering + persiapan data via ``CreditPreprocessor``.
+    2. Split data menjadi train/test dengan stratifikasi per kelas.
+    3. Untuk setiap model kandidat: cross-validate → fit pada train set → evaluasi pada test set.
+    4. Pilih model terbaik berdasarkan ``f1_macro`` test lalu ``cv_f1_macro_mean`` sebagai tie-breaker.
+    5. Simpan semua artifact ke disk dan catat ke MLflow (parent run + nested run per model).
+    """
+
     def __init__(
         self,
         data_path: str,
@@ -88,6 +149,27 @@ class ExperimentRunner:
         tracking_uri: str = DEFAULT_TRACKING_URI,
         experiment_name: str = DEFAULT_EXPERIMENT,
     ):
+        """Konfigurasi semua parameter eksperimen dan inisialisasi komponen pendukung.
+
+        Parameters
+        ----------
+        data_path:
+            Path ke file CSV dataset training (misal ``"data_C.csv"``).
+        output_dir:
+            Folder tujuan penyimpanan artifact hasil training. Default: ``artifacts/``.
+        random_state:
+            Seed untuk reproduktibilitas split data dan semua model yang mendukungnya.
+        test_size:
+            Proporsi data yang dipakai sebagai test set. Default 0.2 (20%).
+        cv_splits:
+            Jumlah fold pada ``StratifiedKFold`` cross-validation. Default 3.
+        show_progress:
+            Jika ``True``, tampilkan progress bar (tqdm atau SimpleProgress).
+        tracking_uri:
+            URI MLflow tracking server. Default: SQLite lokal di root project.
+        experiment_name:
+            Nama experiment di MLflow. Default: ``"credit_scoring"``.
+        """
         self.data_path = data_path
         self.output = Path(output_dir)
         self.random_state = random_state
@@ -101,6 +183,23 @@ class ExperimentRunner:
         self.evaluator = Evaluator()
 
     def run(self) -> dict:
+        """Eksekusi loop training utama dan kembalikan ringkasan hasil eksperimen.
+
+        Membuka satu MLflow parent run bernama ``"training_session"``, lalu untuk
+        setiap model kandidat membuka nested run tersendiri. Model terbaik
+        dipromosikan kembali ke parent run agar mudah ditemukan di MLflow UI.
+
+        Returns
+        -------
+        dict
+            Ringkasan eksperimen berisi:
+            - ``"best_model"``: nama model pemenang.
+            - ``"metrics"``: laporan evaluasi lengkap model terbaik.
+            - ``"experiment_results"``: perbandingan semua kandidat sebagai list of dict.
+            - ``"artifact_dir"``: path absolut folder artifact.
+            - ``"mlflow_run_id"``: ID parent run MLflow.
+            - ``"mlflow_tracking_uri"``: URI tracking yang dipakai.
+        """
         self.output.mkdir(parents=True, exist_ok=True)
         mlflow.set_tracking_uri(self.tracking_uri)
         mlflow.set_experiment(self.experiment_name)
@@ -246,7 +345,22 @@ class ExperimentRunner:
 
     @staticmethod
     def _loggable_params(params: dict) -> dict:
-        """Keep only scalar hyperparameters MLflow can store cleanly."""
+        """Filter hyperparameter sehingga hanya tipe scalar yang diteruskan ke MLflow.
+
+        MLflow ``log_params`` hanya menerima nilai string, int, float, bool, atau None.
+        Parameter bertipe list/dict/object (misal ``class_weight="balanced"`` yang
+        kadang direpresentasikan sebagai dict) akan menyebabkan error jika tidak disaring.
+
+        Parameters
+        ----------
+        params:
+            Dict hyperparameter mentah dari ``estimator.get_params()``.
+
+        Returns
+        -------
+        dict
+            Dict yang hanya berisi key-value dengan tipe yang aman untuk MLflow.
+        """
         return {
             key: value
             for key, value in params.items()
@@ -256,6 +370,26 @@ class ExperimentRunner:
     def _save_artifacts(
         self, model, results: pd.DataFrame, metrics: dict, metadata: dict
     ):
+        """Simpan semua artifact hasil training ke folder output di disk.
+
+        File yang disimpan:
+        - ``model.joblib`` — sklearn Pipeline lengkap (preprocessor + model terbaik).
+        - ``feature_schema.json`` — metadata fitur dan konfigurasi training.
+        - ``metrics.json`` — laporan evaluasi lengkap model terbaik.
+        - ``experiment_results.csv`` — perbandingan semua kandidat model.
+        - ``training_runs.jsonl`` — log append-only satu baris per sesi training.
+
+        Parameters
+        ----------
+        model:
+            sklearn Pipeline yang sudah dilatih (model terbaik).
+        results:
+            DataFrame perbandingan semua kandidat, sudah diurutkan terbaik ke terburuk.
+        metrics:
+            Dict laporan evaluasi lengkap model terbaik dari ``Evaluator.report()``.
+        metadata:
+            Dict schema fitur dan konfigurasi eksperimen dari ``CreditPreprocessor.prepare()``.
+        """
         joblib.dump(model, self.output / "model.joblib")
         results.to_csv(self.output / "experiment_results.csv", index=False)
         (self.output / "metrics.json").write_text(
@@ -288,7 +422,7 @@ def train_experiments(
     tracking_uri: str = DEFAULT_TRACKING_URI,
     experiment_name: str = DEFAULT_EXPERIMENT,
 ):
-    """Functional entrypoint kept for backward compatibility with scripts."""
+    """Entrypoint fungsional yang membungkus ``ExperimentRunner`` untuk kompatibilitas mundur dengan skrip lama."""
     runner = ExperimentRunner(
         data_path=data_path,
         output_dir=output_dir,
